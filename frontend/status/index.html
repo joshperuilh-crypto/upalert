@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Status Page — UpAlert</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green: #22c55e; --green-d: #16a34a;
+      --red: #ef4444; --yellow: #f59e0b;
+      --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+      --gray-500: #6b7280; --gray-700: #374151; --gray-900: #111827;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gray-100); color: var(--gray-900); }
+    .container { max-width: 680px; margin: 0 auto; padding: 2rem 1rem; }
+    .header { text-align: center; margin-bottom: 2rem; }
+    .header h1 { font-size: 1.6rem; font-weight: 900; margin-bottom: .5rem; }
+    .overall-status {
+      display: inline-flex;
+      align-items: center;
+      gap: .65rem;
+      padding: .6rem 1.25rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 1rem;
+      margin: .75rem 0;
+    }
+    .status-ok      { background: #dcfce7; color: var(--green-d); }
+    .status-degraded{ background: #fee2e2; color: var(--red); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-green { background: var(--green); }
+    .dot-red   { background: var(--red); }
+
+    .section-title { font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-500); margin: 1.5rem 0 .75rem; }
+
+    .monitor-row {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: .6rem;
+    }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .up   { background: var(--green); }
+    .down { background: var(--red); }
+    .unknown { background: var(--gray-200); }
+    .monitor-info { flex: 1; }
+    .monitor-name { font-weight: 700; font-size: .9rem; }
+    .monitor-meta { font-size: .78rem; color: var(--gray-500); }
+    .uptime-pct { font-size: .9rem; font-weight: 700; }
+
+    .incident-row {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-left: 4px solid var(--red);
+      border-radius: 8px;
+      padding: .85rem 1rem;
+      margin-bottom: .6rem;
+      font-size: .875rem;
+    }
+    .incident-row.resolved { border-left-color: var(--green); }
+    .incident-title { font-weight: 700; margin-bottom: .2rem; }
+    .incident-meta  { color: var(--gray-500); font-size: .8rem; }
+
+    .footer { text-align: center; margin-top: 3rem; font-size: .8rem; color: var(--gray-500); }
+    .footer a { color: var(--green); text-decoration: none; }
+    .error { text-align: center; padding: 4rem; color: var(--gray-500); }
+    .spinner { width: 28px; height: 28px; border: 3px solid var(--gray-200); border-top-color: var(--green); border-radius: 50%; animation: spin .6s linear infinite; margin: 4rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div id="content"><div class="spinner"></div></div>
+  <div class="footer"><p>Powered by <a href="https://upalert.io">UpAlert</a></p></div>
+</div>
+
+<script>
+  const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8787'
+    : 'https://upalert.workers.dev';
+
+  // Get user ID from URL: /status/123 or ?id=123
+  function getUserId() {
+    const pathMatch = window.location.pathname.match(/\/status\/(\d+)/);
+    if (pathMatch) return pathMatch[1];
+    const params = new URLSearchParams(window.location.search);
+    return params.get('id');
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function formatDate(ts) {
+    return new Date(ts * 1000).toLocaleString();
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds) return '';
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${h}h ${m}m`;
+  }
+
+  async function loadStatus() {
+    const userId = getUserId();
+    if (!userId) {
+      document.getElementById('content').innerHTML = `<div class="error"><h2>No status page found</h2><p>Check the URL and try again.</p></div>`;
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/status/${userId}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        document.getElementById('content').innerHTML = `<div class="error"><h2>${escHtml(data.error)}</h2></div>`;
+        return;
+      }
+
+      renderStatus(data);
+    } catch (err) {
+      document.getElementById('content').innerHTML = `<div class="error"><h2>Could not load status</h2><p>${escHtml(err.message)}</p></div>`;
+    }
+  }
+
+  function renderStatus(data) {
+    const { page, monitors, incidents } = data;
+
+    const isOk = page.overall_status === 'operational';
+    const statusClass = isOk ? 'status-ok' : 'status-degraded';
+    const dotClass    = isOk ? 'dot-green' : 'dot-red';
+    const statusText  = isOk ? 'All systems operational' : 'Some systems degraded';
+
+    const monitorsHtml = monitors.map(m => {
+      const statusClass = m.last_status === 'up' ? 'up' : m.last_status === 'down' ? 'down' : 'unknown';
+      const uptime = m.uptime_24h !== null ? `${m.uptime_24h}% uptime (24h)` : 'No data yet';
+      const rt = m.last_response_time ? ` · ${m.last_response_time}ms` : '';
+      return `
+        <div class="monitor-row">
+          <div class="status-dot ${statusClass}"></div>
+          <div class="monitor-info">
+            <div class="monitor-name">${escHtml(m.name)}</div>
+            <div class="monitor-meta">${uptime}${rt}</div>
+          </div>
+          <div class="uptime-pct" style="color:${m.last_status === 'down' ? 'var(--red)' : 'var(--green)'}">
+            ${m.last_status === 'down' ? 'DOWN' : m.last_status === 'up' ? 'UP' : '—'}
+          </div>
+        </div>`;
+    }).join('') || '<p style="color:var(--gray-500);text-align:center;padding:1rem;">No monitors configured.</p>';
+
+    const incidentsHtml = incidents.length === 0
+      ? '<p style="color:var(--gray-500);font-size:.875rem;">No incidents in the last 7 days.</p>'
+      : incidents.map(i => {
+          const isResolved = !!i.resolved_at;
+          const duration = isResolved ? formatDuration(i.duration) : '';
+          return `
+            <div class="incident-row ${isResolved ? 'resolved' : ''}">
+              <div class="incident-title">${escHtml(i.monitor_name)} — ${isResolved ? 'Resolved' : 'Ongoing'}</div>
+              <div class="incident-meta">
+                Started: ${formatDate(i.started_at)}
+                ${isResolved ? ` · Resolved: ${formatDate(i.resolved_at)} · Duration: ${duration}` : ''}
+              </div>
+            </div>`;
+        }).join('');
+
+    const lastUpdated = new Date(page.last_updated * 1000).toLocaleString();
+
+    document.getElementById('content').innerHTML = `
+      <div class="header">
+        <h1>${escHtml(page.owner)}'s Status Page</h1>
+        <div class="overall-status ${statusClass}">
+          <div class="dot ${dotClass}"></div>
+          ${statusText}
+        </div>
+        <p style="font-size:.8rem;color:var(--gray-500);">Last updated: ${lastUpdated}</p>
+      </div>
+
+      <div class="section-title">Monitors</div>
+      ${monitorsHtml}
+
+      <div class="section-title">Incidents (Last 7 Days)</div>
+      ${incidentsHtml}
+    `;
+  }
+
+  loadStatus();
+  // Refresh every 60s
+  setInterval(loadStatus, 60000);
+</script>
+</body>
+</html>

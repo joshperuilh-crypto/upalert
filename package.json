@@ -1,0 +1,19 @@
+{
+  "name": "upalert",
+  "version": "1.0.0",
+  "description": "Uptime monitoring SaaS on Cloudflare Workers + Pages",
+  "scripts": {
+    "dev:api": "wrangler dev workers/api/index.js --local",
+    "dev:monitor": "wrangler dev workers/monitor/index.js --local --config wrangler.monitor.toml",
+    "deploy:api": "wrangler deploy",
+    "deploy:monitor": "wrangler deploy --config wrangler.monitor.toml",
+    "deploy:all": "npm run deploy:api && npm run deploy:monitor",
+    "db:create": "wrangler d1 create upalert-db",
+    "db:migrate": "wrangler d1 execute upalert-db --file=schema.sql",
+    "db:migrate:local": "wrangler d1 execute upalert-db --local --file=schema.sql",
+    "pages:deploy": "wrangler pages deploy frontend --project-name=upalert"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

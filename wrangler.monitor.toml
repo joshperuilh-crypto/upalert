@@ -1,0 +1,19 @@
+name = "upalert-monitor"
+main = "workers/monitor/index.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database binding (same DB as API worker)
+[[d1_databases]]
+binding = "DB"
+database_name = "upalert-db"
+database_id = "YOUR_D1_DATABASE_ID"  # Same ID as in wrangler.toml
+
+[vars]
+ENVIRONMENT = "production"
+RESEND_API_KEY = ""  # Set via: wrangler secret put RESEND_API_KEY --config wrangler.monitor.toml
+API_BASE_URL = "https://upalert-api.workers.dev"
+
+# Cron trigger: every minute
+[triggers]
+crons = ["* * * * *"]

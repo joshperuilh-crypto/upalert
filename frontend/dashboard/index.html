@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UpAlert — Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:    #22c55e;
+      --green-d:  #16a34a;
+      --red:      #ef4444;
+      --yellow:   #f59e0b;
+      --blue:     #3b82f6;
+      --gray-50:  #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-900: #111827;
+      --white:    #ffffff;
+      --sidebar-w: 220px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      min-height: 100vh;
+    }
+
+    /* AUTH MODAL */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17,24,39,.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .auth-box {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+    .auth-box h1 { font-size: 1.6rem; font-weight: 900; margin-bottom: .25rem; }
+    .auth-box h1 span { color: var(--green); }
+    .auth-box p { color: var(--gray-600); margin-bottom: 1.75rem; font-size: .9rem; }
+    .auth-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--gray-200);
+      margin-bottom: 1.5rem;
+    }
+    .auth-tab {
+      flex: 1;
+      padding: .65rem;
+      text-align: center;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--gray-500);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      font-size: .95rem;
+    }
+    .auth-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: .35rem; color: var(--gray-700); }
+    .form-group input {
+      width: 100%;
+      padding: .65rem .85rem;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .form-group input:focus { border-color: var(--green); }
+    .form-error { color: var(--red); font-size: .85rem; margin-top: .35rem; }
+
+    .btn {
+      display: inline-block;
+      padding: .65rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-size: .95rem;
+      transition: all .15s;
+    }
+    .btn-primary { background: var(--green); color: #fff; width: 100%; }
+    .btn-primary:hover { background: var(--green-d); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn-ghost   { background: transparent; color: var(--gray-600); }
+    .btn-sm { padding: .35rem .75rem; font-size: .8rem; }
+
+    /* LAYOUT */
+    #app { display: none; }
+    .layout { display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--gray-900);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1rem;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+    }
+    .sidebar .logo {
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: var(--green);
+      margin-bottom: 2rem;
+      padding-left: .5rem;
+    }
+    .sidebar .logo span { color: #fff; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      padding: .6rem .75rem;
+      border-radius: 8px;
+      color: #9ca3af;
+      font-size: .9rem;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: .15rem;
+      text-decoration: none;
+      transition: all .15s;
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+    }
+    .nav-item:hover, .nav-item.active {
+      background: rgba(255,255,255,.08);
+      color: #fff;
+    }
+    .nav-item.active { color: var(--green); }
+    .sidebar-bottom { margin-top: auto; }
+    .user-info {
+      padding: .75rem;
+      border-top: 1px solid rgba(255,255,255,.1);
+      font-size: .8rem;
+      color: #9ca3af;
+    }
+    .user-info strong { display: block; color: #fff; margin-bottom: .1rem; }
+    .plan-badge {
+      display: inline-block;
+      background: rgba(34,197,94,.15);
+      color: var(--green);
+      font-size: .7rem;
+      font-weight: 700;
+      padding: .1rem .5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    /* MAIN CONTENT */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 2rem;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+    }
+    .page-header h2 { font-size: 1.5rem; font-weight: 800; }
+    .page-header p  { color: var(--gray-600); font-size: .9rem; margin-top: .2rem; }
+
+    /* STATS CARDS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .stat-label { font-size: .8rem; color: var(--gray-500); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .stat-value { font-size: 2rem; font-weight: 900; margin: .25rem 0; }
+    .stat-sub   { font-size: .8rem; color: var(--gray-500); }
+    .stat-up    { color: var(--green); }
+    .stat-down  { color: var(--red); }
+
+    /* MONITOR LIST */
+    .monitors-list { display: flex; flex-direction: column; gap: .75rem; }
+    .monitor-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: border-color .15s;
+    }
+    .monitor-card:hover { border-color: var(--gray-300); }
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-up   { background: var(--green); box-shadow: 0 0 0 3px rgba(34,197,94,.2); }
+    .status-down { background: var(--red);   box-shadow: 0 0 0 3px rgba(239,68,68,.2); animation: pulse-red 1s infinite; }
+    .status-unknown { background: var(--gray-300); }
+    @keyframes pulse-red {
+      0%,100% { box-shadow: 0 0 0 3px rgba(239,68,68,.2); }
+      50%      { box-shadow: 0 0 0 6px rgba(239,68,68,.1); }
+    }
+    .monitor-main { flex: 1; min-width: 0; }
+    .monitor-name { font-weight: 700; font-size: .95rem; }
+    .monitor-url  { color: var(--gray-500); font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+    .monitor-meta { display: flex; align-items: center; gap: 1.5rem; }
+    .uptime-pct   { font-size: .9rem; font-weight: 700; }
+    .response-time { font-size: .8rem; color: var(--gray-500); }
+    .monitor-actions { display: flex; gap: .5rem; }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17,24,39,.6);
+      backdrop-filter: blur(4px);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+    .modal h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 1.25rem; }
+
+    /* MINI CHART (uptime bars) */
+    .uptime-bars {
+      display: flex;
+      gap: 2px;
+      margin-top: .5rem;
+    }
+    .uptime-bar {
+      flex: 1;
+      height: 32px;
+      border-radius: 3px;
+    }
+    .bar-up   { background: var(--green); }
+    .bar-down { background: var(--red); }
+    .bar-empty{ background: var(--gray-200); }
+
+    /* EMPTY STATE */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--gray-500);
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.2rem; font-weight: 700; color: var(--gray-700); margin-bottom: .5rem; }
+
+    /* TOAST */
+    #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: .5rem; }
+    .toast {
+      padding: .75rem 1.25rem;
+      border-radius: 8px;
+      font-size: .875rem;
+      font-weight: 600;
+      color: #fff;
+      min-width: 260px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all .3s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast-success { background: var(--green-d); }
+    .toast-error   { background: var(--red); }
+
+    /* CHECKS TABLE */
+    .checks-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .checks-table th, .checks-table td { padding: .6rem .75rem; text-align: left; border-bottom: 1px solid var(--gray-200); }
+    .checks-table th { font-weight: 700; color: var(--gray-600); background: var(--gray-50); }
+    .badge-up   { background: #dcfce7; color: var(--green-d); padding: .15rem .5rem; border-radius: 4px; font-weight: 700; font-size: .75rem; }
+    .badge-down { background: #fee2e2; color: var(--red); padding: .15rem .5rem; border-radius: 4px; font-weight: 700; font-size: .75rem; }
+
+    /* LOADING */
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid var(--gray-200);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      margin: 2rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* RESPONSIVE */
+    @media (max-width: 700px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 1rem; }
+      .monitor-meta { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <h1>Up<span>Alert</span></h1>
+    <p>Monitor your websites. Get alerted instantly.</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Login</button>
+      <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <div class="form-error" id="login-error"></div>
+      <button type="submit" class="btn btn-primary" id="login-btn">Login</button>
+    </form>
+
+    <form id="signup-form" onsubmit="handleSignup(event)" style="display:none;">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password <small style="color:var(--gray-500)">(min 8 chars)</small></label>
+        <input type="password" id="signup-password" placeholder="••••••••" required autocomplete="new-password" minlength="8">
+      </div>
+      <div class="form-error" id="signup-error"></div>
+      <button type="submit" class="btn btn-primary" id="signup-btn">Create free account</button>
+      <p style="text-align:center;margin-top:.75rem;font-size:.8rem;color:var(--gray-500);">No credit card needed</p>
+    </form>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app">
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="logo">Up<span>Alert</span></div>
+      <nav>
+        <button class="nav-item active" onclick="showPage('monitors')" id="nav-monitors">
+          🖥 Monitors
+        </button>
+        <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
+          ⚙️ Settings
+        </button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="user-info">
+          <strong id="sidebar-email">—</strong>
+          <span class="plan-badge" id="sidebar-plan">free</span>
+        </div>
+        <button class="nav-item" onclick="handleLogout()" style="margin-top:.5rem;">
+          ↩ Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+      <!-- MONITORS PAGE -->
+      <div class="page active" id="page-monitors">
+        <div class="page-header">
+          <div>
+            <h2>Monitors</h2>
+            <p id="monitors-subtitle">Loading your monitors…</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openAddMonitor()" style="width:auto;">+ Add Monitor</button>
+        </div>
+
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Monitors</div>
+            <div class="stat-value" id="stat-total">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Operational</div>
+            <div class="stat-value stat-up" id="stat-up">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Down</div>
+            <div class="stat-value stat-down" id="stat-down">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg Uptime (24h)</div>
+            <div class="stat-value" id="stat-avg-uptime">—</div>
+          </div>
+        </div>
+
+        <div id="monitors-list-container">
+          <div class="spinner"></div>
+        </div>
+      </div>
+
+      <!-- MONITOR DETAIL PAGE -->
+      <div class="page" id="page-monitor-detail">
+        <div class="page-header">
+          <div>
+            <button onclick="showPage('monitors')" class="btn btn-ghost btn-sm" style="margin-bottom:.5rem;">← Back</button>
+            <h2 id="detail-name">—</h2>
+            <p id="detail-url" style="color:var(--gray-500);font-size:.9rem;"></p>
+          </div>
+          <div id="detail-status-badge"></div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Status</div>
+            <div class="stat-value" id="detail-status">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Uptime 24h</div>
+            <div class="stat-value" id="detail-uptime-24h">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Uptime 7d</div>
+            <div class="stat-value" id="detail-uptime-7d">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Response Time</div>
+            <div class="stat-value" id="detail-response">—</div>
+          </div>
+        </div>
+
+        <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">
+          <h3 style="font-size:.95rem;font-weight:700;margin-bottom:1rem;">Last 90 checks</h3>
+          <div class="uptime-bars" id="detail-bars"></div>
+        </div>
+
+        <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:12px;padding:1.5rem;">
+          <h3 style="font-size:.95rem;font-weight:700;margin-bottom:1rem;">Recent checks</h3>
+          <div id="detail-checks-table"></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS PAGE -->
+      <div class="page" id="page-settings">
+        <div class="page-header">
+          <div>
+            <h2>Settings</h2>
+            <p>Manage your account and notification preferences</p>
+          </div>
+        </div>
+
+        <div style="max-width:540px;">
+          <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:1.25rem;">Plan</h3>
+            <p>Current plan: <strong id="settings-plan">—</strong></p>
+            <p style="font-size:.85rem;color:var(--gray-500);margin-top:.35rem;" id="settings-plan-desc"></p>
+          </div>
+
+          <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:1.25rem;">Email Alerts</h3>
+            <p style="font-size:.85rem;color:var(--gray-600);margin-bottom:1rem;">Bring your own Resend API key to send alerts from your domain. Leave blank to use the default sender.</p>
+            <div class="form-group">
+              <label>Resend API Key</label>
+              <input type="text" id="settings-resend-key" placeholder="re_xxxxxxxxxxxxxxxxx">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="saveSettings()" style="width:auto;">Save</button>
+          </div>
+
+          <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:12px;padding:1.5rem;">
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:.5rem;">Slack Alerts <span style="font-size:.75rem;background:#fef3c7;color:#92400e;padding:.1rem .4rem;border-radius:4px;">Business</span></h3>
+            <p style="font-size:.85rem;color:var(--gray-600);margin-bottom:1rem;">Add a Slack Incoming Webhook URL to receive down/up alerts in your Slack channel.</p>
+            <div class="form-group">
+              <label>Slack Webhook URL</label>
+              <input type="url" id="settings-slack-url" placeholder="https://hooks.slack.com/services/…">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="saveSettings()" style="width:auto;">Save</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ADD MONITOR MODAL -->
+<div id="add-monitor-modal" style="display:none;" class="modal-overlay">
+  <div class="modal">
+    <h3>Add Monitor</h3>
+    <form onsubmit="handleAddMonitor(event)">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="new-monitor-name" placeholder="My Website" required maxlength="80">
+      </div>
+      <div class="form-group">
+        <label>URL</label>
+        <input type="url" id="new-monitor-url" placeholder="https://example.com" required>
+      </div>
+      <div class="form-group">
+        <label>Check Interval</label>
+        <select id="new-monitor-interval" style="width:100%;padding:.65rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.95rem;">
+          <option value="1">Every 1 minute (Pro/Business)</option>
+          <option value="5" selected>Every 5 minutes (Free)</option>
+          <option value="10">Every 10 minutes</option>
+          <option value="15">Every 15 minutes</option>
+          <option value="30">Every 30 minutes</option>
+        </select>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:.5rem;">
+        <input type="checkbox" id="new-monitor-email" checked style="width:auto;">
+        <label for="new-monitor-email" style="margin:0;">Email alerts on status change</label>
+      </div>
+      <div class="form-error" id="add-monitor-error"></div>
+      <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+        <button type="button" class="btn btn-ghost" onclick="closeAddMonitor()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="add-monitor-btn" style="flex:1;">Add Monitor</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

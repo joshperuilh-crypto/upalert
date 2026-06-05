@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UpAlert — Uptime Monitoring for Your Websites</title>
+  <meta name="description" content="Know instantly when your website goes down. UpAlert monitors your URLs every minute and alerts you via email or Slack.">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:   #22c55e;
+      --green-d: #16a34a;
+      --red:     #ef4444;
+      --gray-50: #f9fafb;
+      --gray-100:#f3f4f6;
+      --gray-200:#e5e7eb;
+      --gray-600:#4b5563;
+      --gray-700:#374151;
+      --gray-900:#111827;
+      --white:   #ffffff;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--gray-900);
+      background: var(--white);
+      line-height: 1.6;
+    }
+
+    /* NAV */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--gray-200);
+      position: sticky;
+      top: 0;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+    .logo {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--green);
+      text-decoration: none;
+    }
+    .logo span { color: var(--gray-900); }
+    nav .links a {
+      margin-left: 1.5rem;
+      text-decoration: none;
+      color: var(--gray-700);
+      font-weight: 500;
+    }
+    nav .links a:hover { color: var(--green); }
+    .btn {
+      display: inline-block;
+      padding: .55rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      font-size: 1rem;
+      transition: all .15s;
+    }
+    .btn-primary {
+      background: var(--green);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--green-d); }
+    .btn-outline {
+      background: transparent;
+      border: 2px solid var(--gray-200);
+      color: var(--gray-700);
+    }
+    .btn-outline:hover { border-color: var(--green); color: var(--green); }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 5rem 1rem 4rem;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .hero .badge {
+      display: inline-block;
+      background: #dcfce7;
+      color: var(--green-d);
+      font-size: .8rem;
+      font-weight: 700;
+      padding: .25rem .75rem;
+      border-radius: 999px;
+      margin-bottom: 1.25rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+      color: var(--gray-900);
+    }
+    .hero h1 em { color: var(--green); font-style: normal; }
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--gray-600);
+      max-width: 540px;
+      margin: 0 auto 2rem;
+    }
+    .hero-cta {
+      display: flex;
+      gap: .75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .hero-cta .btn { font-size: 1.05rem; padding: .75rem 2rem; }
+
+    /* STATUS DEMO */
+    .demo {
+      max-width: 600px;
+      margin: 3rem auto;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .demo-header {
+      background: var(--gray-900);
+      color: #fff;
+      padding: .6rem 1rem;
+      font-size: .8rem;
+      display: flex;
+      gap: .4rem;
+      align-items: center;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ff5f57; }
+    .dot-yellow { background: #febc2e; }
+    .dot-green { background: #28c840; }
+    .demo-body { padding: 1.25rem 1.5rem; }
+    .monitor-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: .65rem 0;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .monitor-row:last-child { border-bottom: none; }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .up   { background: var(--green); }
+    .down { background: var(--red); }
+    .monitor-info { flex: 1; }
+    .monitor-name { font-weight: 600; font-size: .9rem; }
+    .monitor-url  { font-size: .75rem; color: var(--gray-600); }
+    .monitor-stats { text-align: right; font-size: .8rem; color: var(--gray-600); }
+    .monitor-stats strong { color: var(--gray-900); }
+
+    /* FEATURES */
+    .features {
+      max-width: 1000px;
+      margin: 5rem auto;
+      padding: 0 1rem;
+      text-align: center;
+    }
+    .section-title { font-size: 2rem; font-weight: 800; margin-bottom: .5rem; }
+    .section-sub   { color: var(--gray-600); margin-bottom: 3rem; font-size: 1.05rem; }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 1.75rem;
+      text-align: left;
+    }
+    .feature-icon { font-size: 2rem; margin-bottom: .75rem; }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: .4rem; }
+    .feature-card p  { color: var(--gray-600); font-size: .9rem; }
+
+    /* PRICING */
+    .pricing {
+      background: var(--gray-50);
+      padding: 5rem 1rem;
+      text-align: center;
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .plan-card {
+      background: var(--white);
+      border: 2px solid var(--gray-200);
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: left;
+      position: relative;
+    }
+    .plan-card.featured {
+      border-color: var(--green);
+      transform: scale(1.03);
+    }
+    .plan-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--green);
+      color: #fff;
+      font-size: .75rem;
+      font-weight: 700;
+      padding: .2rem .75rem;
+      border-radius: 999px;
+    }
+    .plan-name  { font-weight: 800; font-size: 1.1rem; color: var(--gray-700); margin-bottom: .25rem; }
+    .plan-price { font-size: 2.5rem; font-weight: 900; margin-bottom: .25rem; }
+    .plan-price span { font-size: 1rem; color: var(--gray-600); font-weight: 400; }
+    .plan-desc  { color: var(--gray-600); font-size: .9rem; margin-bottom: 1.5rem; }
+    .plan-features { list-style: none; margin-bottom: 1.75rem; }
+    .plan-features li {
+      padding: .35rem 0;
+      font-size: .9rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .plan-features li::before { content: '✓'; color: var(--green); font-weight: 700; }
+
+    /* SOCIAL PROOF */
+    .trust {
+      max-width: 800px;
+      margin: 5rem auto;
+      padding: 0 1rem;
+      text-align: center;
+    }
+    .trust-numbers {
+      display: flex;
+      justify-content: center;
+      gap: 4rem;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+    }
+    .trust-num { text-align: center; }
+    .trust-num strong { font-size: 2.5rem; font-weight: 900; color: var(--green); display: block; }
+    .trust-num span   { font-size: .9rem; color: var(--gray-600); }
+
+    /* CTA BOTTOM */
+    .cta-bottom {
+      background: var(--gray-900);
+      color: #fff;
+      text-align: center;
+      padding: 5rem 1rem;
+    }
+    .cta-bottom h2 { font-size: 2.2rem; font-weight: 900; margin-bottom: 1rem; }
+    .cta-bottom p  { color: #9ca3af; margin-bottom: 2rem; font-size: 1.05rem; }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--gray-600);
+      font-size: .875rem;
+      border-top: 1px solid var(--gray-200);
+    }
+    footer a { color: var(--green); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">Up<span>Alert</span></a>
+  <div class="links">
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="/dashboard/">Login</a>
+    <a href="/dashboard/#signup" class="btn btn-primary" style="margin-left:1rem;">Get Started Free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge">⚡ Free plan — no credit card needed</div>
+  <h1>Know when your site goes <em>down</em>, before your users do</h1>
+  <p>UpAlert monitors your websites every minute and sends instant alerts via email or Slack when something breaks.</p>
+  <div class="hero-cta">
+    <a href="/dashboard/#signup" class="btn btn-primary">Start monitoring free →</a>
+    <a href="#pricing" class="btn btn-outline">See pricing</a>
+  </div>
+</section>
+
+<!-- DEMO PREVIEW -->
+<div class="demo" style="max-width:600px;margin:0 auto 4rem;padding:0 1rem;">
+  <div class="demo">
+    <div class="demo-header">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+      &nbsp; UpAlert Dashboard
+    </div>
+    <div class="demo-body">
+      <div class="monitor-row">
+        <div class="status-dot up"></div>
+        <div class="monitor-info">
+          <div class="monitor-name">My Website</div>
+          <div class="monitor-url">https://example.com</div>
+        </div>
+        <div class="monitor-stats"><strong>99.98%</strong><br>uptime · 142ms</div>
+      </div>
+      <div class="monitor-row">
+        <div class="status-dot up"></div>
+        <div class="monitor-info">
+          <div class="monitor-name">API Server</div>
+          <div class="monitor-url">https://api.example.com/health</div>
+        </div>
+        <div class="monitor-stats"><strong>100%</strong><br>uptime · 89ms</div>
+      </div>
+      <div class="monitor-row">
+        <div class="status-dot down"></div>
+        <div class="monitor-info">
+          <div class="monitor-name">Staging</div>
+          <div class="monitor-url">https://staging.example.com</div>
+        </div>
+        <div class="monitor-stats" style="color:#ef4444;"><strong style="color:#ef4444;">DOWN</strong><br>since 3 min ago</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <h2 class="section-title">Everything you need to stay online</h2>
+  <p class="section-sub">Simple, powerful uptime monitoring — without the complexity.</p>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>1-Minute Checks</h3>
+      <p>Get notified within 60 seconds of downtime. Every minute matters when users can't access your app.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📧</div>
+      <h3>Instant Alerts</h3>
+      <p>Email and Slack notifications the moment your site goes down — and again when it recovers.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Uptime History</h3>
+      <p>Track uptime % over 24h, 7 days, and 30 days. Response time trends so you can catch slowdowns early.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🌐</div>
+      <h3>Public Status Pages</h3>
+      <p>Share a beautiful status page with your users and customers. Build trust by being transparent.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <h3>Global Infrastructure</h3>
+      <p>Powered by Cloudflare's global network — checks run from 300+ locations worldwide.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🚨</div>
+      <h3>Incident Tracking</h3>
+      <p>Automatic incident detection and resolution tracking. Full outage timeline with root cause notes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <h2 class="section-title">Simple, transparent pricing</h2>
+  <p class="section-sub">Start free. Upgrade when you need more.</p>
+  <div class="pricing-grid">
+
+    <div class="plan-card">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">$0 <span>/ month</span></div>
+      <div class="plan-desc">Perfect for personal projects and small sites.</div>
+      <ul class="plan-features">
+        <li>3 monitors</li>
+        <li>5-minute check interval</li>
+        <li>Email alerts</li>
+        <li>7-day history</li>
+        <li>No credit card needed</li>
+      </ul>
+      <a href="/dashboard/#signup" class="btn btn-outline" style="width:100%;text-align:center;">Get started free</a>
+    </div>
+
+    <div class="plan-card featured">
+      <div class="plan-badge">Most Popular</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">$9 <span>/ month</span></div>
+      <div class="plan-desc">For developers and small businesses who need reliability.</div>
+      <ul class="plan-features">
+        <li>20 monitors</li>
+        <li>1-minute check interval</li>
+        <li>Email alerts</li>
+        <li>Public status page</li>
+        <li>30-day history</li>
+        <li>Priority support</li>
+      </ul>
+      <a href="/dashboard/#signup?plan=pro" class="btn btn-primary" style="width:100%;text-align:center;">Start Pro →</a>
+    </div>
+
+    <div class="plan-card">
+      <div class="plan-name">Business</div>
+      <div class="plan-price">$19 <span>/ month</span></div>
+      <div class="plan-desc">For teams that can't afford downtime.</div>
+      <ul class="plan-features">
+        <li>Unlimited monitors</li>
+        <li>1-minute check interval</li>
+        <li>Email + Slack alerts</li>
+        <li>Public status page</li>
+        <li>30-day history</li>
+        <li>Incident management</li>
+      </ul>
+      <a href="/dashboard/#signup?plan=business" class="btn btn-outline" style="width:100%;text-align:center;">Start Business →</a>
+    </div>
+
+  </div>
+</section>
+
+<!-- TRUST NUMBERS -->
+<section class="trust">
+  <h2 class="section-title">Built for speed and reliability</h2>
+  <div class="trust-numbers">
+    <div class="trust-num"><strong>300+</strong><span>Cloudflare locations</span></div>
+    <div class="trust-num"><strong>&lt;60s</strong><span>Alert delivery</span></div>
+    <div class="trust-num"><strong>99.9%</strong><span>Monitoring uptime</span></div>
+    <div class="trust-num"><strong>Free</strong><span>To get started</span></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-bottom">
+  <h2>Start monitoring in 60 seconds</h2>
+  <p>No credit card. No setup fees. Just paste your URL and we'll watch it for you.</p>
+  <a href="/dashboard/#signup" class="btn btn-primary" style="font-size:1.1rem;padding:.85rem 2.5rem;">Create your free account →</a>
+</section>
+
+<footer>
+  <p>&copy; 2025 UpAlert — Built on <a href="https://workers.cloudflare.com">Cloudflare Workers</a></p>
+</footer>
+
+</body>
+</html>
